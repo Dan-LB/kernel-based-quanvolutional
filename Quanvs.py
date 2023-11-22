@@ -20,22 +20,109 @@ from qiskit import QuantumCircuit, Aer, execute, transpile
 from qiskit.visualization import circuit_drawer, plot_histogram
 from qiskit.quantum_info import Statevector
 
-from darqk.core import Ansatz
+from darqk.core import Ansatz, Kernel, KernelFactory, KernelType
 
 import matplotlib.pyplot as plt
 
 import random
 import math
-#random.seed(12345)
-#np.random.seed(12345)
 
-THRESHOLD = "THRESHOLD"
-ROTATIONAL = "ROTATIONAL"
+import constants
 
 
-class Quanv2D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, n_shots, stride=1, encoding = THRESHOLD, verbose = False):
-        super(Quanv2D, self).__init__()
+class PQCQuanv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size,  stride=1, verbose = False, n_qubits = 10, L=10):
+        super(PQCQuanv, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+
+
+        self.simulator = Aer.get_backend('qasm_simulator')
+
+        self.n_qubits = n_qubits
+        self.L = L
+
+        self.verbose = verbose
+
+        # Initialize weights and bias
+
+        start_time = time.time()
+        print(f"Initializing Quanv2D module as {self.out_channels} random PQCs, kernel size = {self.kernel_size}, {self.n_qubits} qubits and length {self.L}.")
+        self.circuits = self.generate_random_PQC_layer()
+        end_time = time.time()
+        print(f"Time required to generate circuit layer: {end_time - start_time:.2f} seconds")
+
+
+    def forward(self, x):
+
+        # Calculate output dimensions
+        batch_size, _, height, width = x.shape
+        out_height = (height - self.kernel_size) // self.stride + 1
+        out_width = (width - self.kernel_size) // self.stride + 1
+
+
+        # Create output tensor
+        output = torch.zeros((batch_size, self.out_channels, out_height, out_width))
+
+        # Perform convolution
+        start_time = time.time()
+        for i in range(batch_size):
+            image_start_time = time.time()
+
+            for j in range(self.out_channels):
+                for h in range(out_height):
+                    for w in range(out_width):
+                        h_start = h * self.stride
+                        h_end = h_start + self.kernel_size
+                        w_start = w * self.stride
+                        w_end = w_start + self.kernel_size
+                        patch = x[i, :, h_start:h_end, w_start:w_end].numpy()
+                        patch = patch[0]
+                        output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch)
+
+            image_end_time = time.time()
+            image_time = image_end_time - image_start_time
+            elapsed_time = image_end_time - start_time
+            average_time_per_image = elapsed_time / (i + 1)
+            estimated_remaining_time = average_time_per_image * (batch_size - i - 1)
+            
+            if self.verbose and i%10==9:
+                print(f"Time for image {i+1}: {image_time:.2f} seconds")
+                print(f"Estimated remaining time: {estimated_remaining_time/60:.2f} minutes\n")
+
+        return output
+    
+
+    def generate_random_PQC(self):
+
+        """
+
+        """
+        new_ansatz = Ansatz(self.kernel_size**2, self.n_qubits, self.L)
+        new_ansatz.initialize_to_random_circuit()
+        #new_ansatz = transpile(new_ansatz, self.simulator)
+        kernel = KernelFactory.create_kernel(new_ansatz, "Z"*self.n_qubits, KernelType.OBSERVABLE)
+
+        return kernel
+
+    def generate_random_PQC_layer(self):
+        layer = []
+        for i in range(self.out_channels):
+            layer.append(self.generate_random_PQC())
+        return layer
+
+    def to_quanvolute_patch(self, circuit, patch):
+        output = circuit.phi(patch.ravel())
+        return output
+
+
+
+
+class VQCQuanv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, n_shots, stride=1, encoding = None, verbose = False):
+        super(VQCQuanv, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -95,7 +182,7 @@ class Quanv2D(nn.Module):
         return output
     
 
-    def generate_random_quantum_circuit(self, filter_size = 3, connection_prob = 0.15):
+    def generate_random_quantum_circuit(self, filter_size, connection_prob = 0.15):
 
         """
         Generate... according to [quanvolutional]
@@ -160,7 +247,7 @@ class Quanv2D(nn.Module):
     def to_quanvolute_patch(self, circuit, patch, encoding):
         n = len(patch)
 
-        if encoding == THRESHOLD: #IN 0,1
+        if encoding == constants.THRESHOLD: #IN 0,1
             emb = QuantumCircuit(n*n)
             for i in range(n*n):
                 row = i // n
@@ -168,7 +255,7 @@ class Quanv2D(nn.Module):
                 if patch[row][col] >= 0.5:
                     emb.x(i)
 
-        if encoding == ROTATIONAL:
+        if encoding == constants.ROTATIONAL:
             emb = QuantumCircuit(n*n)
             for i in range(n*n):
                 row = i // n
@@ -195,10 +282,3 @@ class Quanv2D(nn.Module):
             #print(sum_1s)
 
         return sum_1s
-
-
-
-
-
-
-#ok

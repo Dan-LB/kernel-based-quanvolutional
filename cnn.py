@@ -11,16 +11,17 @@ class CNN(nn.Module):
     """
     def __init__(self):
         super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 50, kernel_size=5, padding=0)
-        self.conv2 = nn.Conv2d(50, 64, kernel_size=5, padding=0)
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=3, padding=0)
+        self.conv2 = nn.Conv2d(10, 64, kernel_size=3, padding=0)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(64 * 4 * 4, 1024)
+        self.fc1 = nn.Linear(64 * 1 * 1, 1024)
         self.fc2 = nn.Linear(1024, 10)
 
     def forward(self, x):
+        x = x.permute(0, 2, 1, 3) #!!!!!!!!
         x = self.pool(F.relu(self.conv1(x))) #28x28 -> 24x24 -> 12x12 [50]
         x = self.pool(F.relu(self.conv2(x))) #12x12 -> 8x8 -> 4x4 [64]
-        x = x.view(-1, 64 * 4 * 4)
+        x = x.view(-1, 64 * 1 * 1)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
