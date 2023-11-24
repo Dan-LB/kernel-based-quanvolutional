@@ -62,7 +62,6 @@ class QuanvNN(nn.Module):
 
 
         elif self.quanv_model == constants.RANDOM_PQC:
-            print("TO DO: check the decoding mod!!!")
             self.quanv = PQCQuanv(1, out_channels = self.out_channels, kernel_size=self.kernel_size, verbose = verbose, 
                                   n_qubits = PQC_qubits, L=PQC_L)
             self.info["PQC_qubits"] = PQC_qubits
@@ -90,8 +89,8 @@ class QuanvNN(nn.Module):
 
 
     def forward(self, x):
+        x = x.permute(0, 2, 1, 3)
         if self.on_preprocessed:
-            x = x.permute(0, 2, 1, 3)
             x = self.pool(F.relu(x))
         else:
             x = self.pool(F.relu(self.quanv(x))) #10x10 -> 4x4 [10]

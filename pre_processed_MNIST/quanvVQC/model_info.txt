@@ -1,2 +1,0 @@
-VQC_n_shots: 1000
-VQC_encoding: ROTATIONAL

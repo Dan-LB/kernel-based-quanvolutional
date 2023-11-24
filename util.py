@@ -38,3 +38,25 @@ def test(model, device, test_loader):
     print(f'Test set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({100. * correct / len(test_loader.dataset):.0f}%)\n')
     return test_loss, 100. * correct / len(test_loader.dataset)
 
+def extract_patches(images, n):
+    patch_size = (3, 3)  # Size of the patches to extract
+
+    # Create an empty list to store the extracted patches
+    extracted_patches = []
+
+    size, channels, h, w = images.size()
+
+    # Loop to extract n patches
+    for _ in range(n):
+        # Randomly select an image from the dataset
+        random_image_index = np.random.randint(0, size)
+        image = images[random_image_index]
+        # Randomly select the top-left corner of the patch within the image
+        top_left_x = np.random.randint(0, w - patch_size[1] + 1)
+        top_left_y = np.random.randint(0, h - patch_size[0] + 1)
+        # Extract the patch
+        patch = image[:, top_left_y:top_left_y+patch_size[0], top_left_x:top_left_x+patch_size[1]]
+        # Append the patch to the list of extracted patches
+        extracted_patches.append(patch[0])
+    # The extracted_patches list now contains n 3x3 patches as NumPy arrays 
+    return extracted_patches

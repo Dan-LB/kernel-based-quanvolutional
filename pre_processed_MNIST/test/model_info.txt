@@ -3,4 +3,4 @@ out channels: 10
 quanvolutional model: RANDOM_PQC
 PQC_qubits: 4
 PQC_L: 15
-Images processed: : 1000
+Images processed: : 100
