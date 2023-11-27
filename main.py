@@ -41,7 +41,8 @@ def get_data(n = 200, size = 10):
     # Define the transform to preprocess the MNIST images
     transform = transforms.Compose([
         transforms.Resize((size, size)),
-        transforms.ToTensor(),  # Convert images to PyTorch tensors
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)  # Convert images to PyTorch tensors
     ])
 
     # Download the MNIST dataset and apply the transform
@@ -85,29 +86,15 @@ def create_and_process(n, size, model, folder_name):
             info_file.write(f"{key}: {value}\n")
 
 def plot_some():
-    first_image = q_images[0]
+    first_image = q_images[0]*255
 # Plot each channel as a black and white image
-    for channel in range(channels):
-        plt.subplot(1, channels, channel + 1)
+    for channel in range(10):
+        plt.subplot(1, 10, channel + 1)
         plt.imshow(first_image[channel], cmap='gray')
         plt.axis('off')  # Turn off axis labels and ticks
         plt.title(f'Channel {channel + 1}')
         print(first_image[channel])
     plt.show()
-
-    model.eval()
-    test_loss = 0
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item()  # Sum up batch loss
-            pred = output.argmax(dim=1, keepdim=True)  # Get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
-
-    test_loss /= len(test_loader.dataset)
-    print(f'\nTest set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({100. * correct / len(test_loader.dataset):.0f}%)\n')
 
 quanvPQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_PQC, 
                          PQC_qubits=4, PQC_L=15,
@@ -121,7 +108,7 @@ classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constan
                              verbose=True)
 """
 
-folder_name = "test"
+
 """
 create_and_process(n=100, size = 10, model = quanvPQC_model, folder_name=folder_name)
 
@@ -169,48 +156,37 @@ print(images.shape)
 
 
 
-quanvPQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_PQC, 
-                         PQC_qubits=4, PQC_L=15,
+quanvVQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_VQC, 
+                         VQC_n_shots=1000, VQC_encoding=constants.THRESHOLD,
                          verbose=True)
 
 
 
 
 
-quanvPQC_model.on_preprocessed = True
+quanvVQC_model.quanv.generate_look_up_table()
+quanvVQC_model.verbose = True
+quanvVQC_model.quanv.verbose = True
 
-X, _ = get_data(n=10, size=100) #ATTENZIONE!!! VANNO SCALATI FINO A pi
-quanvPQC_model.quanv.generate_patches(X, 100)
-sim = quanvPQC_model.quanv.compute_similarity_array()
-print(sim)
+folder_name = "test"
+#raise Exception("!!!!!")
 
-for i in range(10):
-    v = quanvPQC_model.quanv.compute_similarity_from_values(i)
-    print(v)
-for i in range(10):
-    quanvPQC_model.quanv.optimize_PQC_i(i, sim)
-    print("Printing similarity: ")
-    sim = quanvPQC_model.quanv.compute_similarity_array()
-    print(sim)
-    for j in range(10):
-        v = quanvPQC_model.quanv.compute_similarity_from_values(j)
-        print(v)
-
-raise Exception("!!!!!")
-
-create_and_process(n=100, size = 10, model = quanvPQC_model, folder_name=folder_name)
+create_and_process(n=70000, size = 28, model = quanvVQC_model, folder_name=folder_name)
 load_path = constants.SAVE_PATH + "\\" + folder_name
 
 q_images = np.load(load_path + "\q_images.npy")
 q_labels = np.load(load_path + "\labels.npy")
 images = np.load(load_path + "\images.npy")
 
+plot_some()
+
+quanvVQC_model.on_preprocessed = True
 
 train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_images, labels_file=q_labels)
 
-optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
+optimizer = optim.Adam(quanvVQC_model.parameters(), lr=0.001) #0.001
 device = torch.device("cpu")
 
 for epoch in range(1, 100):  # 100 epochs
-    train(quanvPQC_model, device, train_loader, optimizer, epoch)
-    loss, correct = test(quanvPQC_model, device, test_loader)
+    train(quanvVQC_model, device, train_loader, optimizer, epoch)
+    loss, correct = test(quanvVQC_model, device, test_loader)

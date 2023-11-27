@@ -35,6 +35,8 @@ from util import extract_patches
 
 from sklearn.metrics.pairwise import cosine_similarity
 
+from itertools import product
+
 
 class PQCQuanv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,  stride=1, verbose = False, n_qubits = 10, L=10):
@@ -200,6 +202,8 @@ class VQCQuanv(nn.Module):
         self.n_shots = n_shots
         self.verbose = verbose
 
+        self.look_up = None
+
         # Initialize weights and bias
         if self.verbose:
                     start_time = time.time()
@@ -211,12 +215,10 @@ class VQCQuanv(nn.Module):
             self.circuits = self.generate_random_quantum_circuit_layer(out_channels, filter_size=kernel_size)
 
     def forward(self, x):
-
         # Calculate output dimensions
         batch_size, _, height, width = x.shape
         out_height = (height - self.kernel_size) // self.stride + 1
         out_width = (width - self.kernel_size) // self.stride + 1
-
 
         # Create output tensor
         output = torch.zeros((batch_size, self.out_channels, out_height, out_width))
@@ -235,15 +237,28 @@ class VQCQuanv(nn.Module):
                         w_end = w_start + self.kernel_size
                         patch = x[i, :, h_start:h_end, w_start:w_end].numpy()
                         patch = patch[0]
-                        output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch, encoding=self.encoding)
+                        if self.look_up == None:
+                            output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch, encoding=self.encoding)
+                        else:
+                            if self.encoding == constants.THRESHOLD:
+                                for ii in range(3*3):
+                                    row = ii // 3
+                                    col = ii % 3
+                                    if patch[row][col] >= 0.5:
+                                        patch[row][col] = int(0)
+                                    else:
+                                        patch[row][col] = int(1)
+                                value =  self.look_up.get((j, tuple(patch.reshape(-1))))
+                                output[i, j, h, w] = value #questo funziona!!!
+
 
             image_end_time = time.time()
             image_time = image_end_time - image_start_time
             elapsed_time = image_end_time - start_time
             average_time_per_image = elapsed_time / (i + 1)
             estimated_remaining_time = average_time_per_image * (batch_size - i - 1)
-            
-            if self.verbose and i%10==9:
+
+            if i%10==0: #boh qualche prob con self.verbose 
                 print(f"Time for image {i+1}: {image_time:.2f} seconds")
                 print(f"Estimated remaining time: {estimated_remaining_time/60:.2f} minutes\n")
 
@@ -313,40 +328,57 @@ class VQCQuanv(nn.Module):
         return layer
 
     def to_quanvolute_patch(self, circuit, patch, encoding):
-        n = len(patch)
 
-        if encoding == constants.THRESHOLD: #IN 0,1
-            emb = QuantumCircuit(n*n)
-            for i in range(n*n):
-                row = i // n
-                col = i % n
-                if patch[row][col] >= 0.5:
-                    emb.x(i)
+        #if self.look_up == None:
+            n = len(patch)
+            if encoding == constants.THRESHOLD: #IN 0,1
+                emb = QuantumCircuit(n*n)
+                for i in range(n*n):
+                    row = i // n
+                    col = i % n
+                    if patch[row][col] >= 0.5:
+                        emb.x(i)
 
-        if encoding == constants.ROTATIONAL:
-            emb = QuantumCircuit(n*n)
-            for i in range(n*n):
-                row = i // n
-                col = i % n
-                theta = patch[row][col]*3.14
-                emb.rx(theta, i)
+            if encoding == constants.ROTATIONAL:
+                emb = QuantumCircuit(n*n)
+                for i in range(n*n):
+                    row = i // n
+                    col = i % n
+                    theta = patch[row][col]*3.14
+                    emb.rx(theta, i)
+            
+
+            combined_circuit = combined_circuit = emb.compose(circuit)
+            combined_circuit.measure_all()
+            
+            result = execute(combined_circuit, self.simulator, shots=self.n_shots).result()
+            counts = result.get_counts(combined_circuit)
+
+            sum_1s = sum(key.count('1') * count for key, count in counts.items()) / self.n_shots / (n*n)
+
+                #print(sum_1s)
+            return sum_1s
+    
+    def generate_look_up_table(self):
+        print("Testing and only for 3x3")
+        self.look_up = {}
+        combinations = list(product([0, 1], repeat=9))
+
+        # Reshape each combination into a 3x3 matrix
+        combinations = [np.array(combination).reshape(3, 3) for combination in combinations]
+
+        start_time = time.time()
+
+        for j in range(len(self.circuits)):
+            print("Generating look-up table for circuit "+str(j+1)+"...")
+            for i, combination in enumerate(combinations):
+                # Replace this with your actual computation logic
+                value =  self.to_quanvolute_patch(self.circuits[j], combination, encoding=self.encoding) 
+                self.look_up[(j, tuple(combination.reshape(-1)))] = value
+        #print(self.look_up)
+        end_time = time.time()
+        print(self.look_up)
+        print("Look up table generated.")
+        print("Time required: "+str(end_time-start_time))
         
 
-        combined_circuit = combined_circuit = emb.compose(circuit)
-        combined_circuit.measure_all()
-
-        #circuit_image = circuit_drawer(combined_circuit, output='mpl', style="iqp")
-        #circuit_image.savefig('quantum_circuit.png')
-
-        
-        result = execute(combined_circuit, self.simulator, shots=self.n_shots).result()
-        counts = result.get_counts(combined_circuit)
-        #print(counts)
-        #plot_histogram(counts)
-
-        #plot_histogram(counts).savefig('histogram.png')
-        sum_1s = sum(key.count('1') * count for key, count in counts.items()) / self.n_shots / (n*n)
-
-            #print(sum_1s)
-
-        return sum_1s
