@@ -18,7 +18,8 @@ from qiskit import QuantumCircuit, Aer, execute
 from qiskit.visualization import circuit_drawer, plot_histogram
 from qiskit.quantum_info import Statevector
 
-from Quanvs import PQCQuanv, VQCQuanv
+from quanvolutive_layers.PQC import PQCQuanv
+from quanvolutive_layers.RandomVQC import VQCQuanv
 
 from darqk.core import Ansatz
 
@@ -54,6 +55,7 @@ class QuanvNN(nn.Module):
         self.verbose = verbose
 
         if self.quanv_model == constants.RANDOM_VQC:
+            
             self.quanv = VQCQuanv(1, out_channels = self.out_channels, kernel_size=self.kernel_size,
                                   n_shots=VQC_n_shots, encoding=VQC_encoding, verbose = verbose)
             
@@ -62,6 +64,7 @@ class QuanvNN(nn.Module):
 
 
         elif self.quanv_model == constants.RANDOM_PQC:
+
             self.quanv = PQCQuanv(1, out_channels = self.out_channels, kernel_size=self.kernel_size, verbose = verbose, 
                                   n_qubits = PQC_qubits, L=PQC_L)
             self.info["PQC_qubits"] = PQC_qubits

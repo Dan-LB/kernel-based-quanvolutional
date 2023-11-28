@@ -37,9 +37,11 @@ class CustomEvaluator(KernelEvaluator):
         similarities = cosine_similarity(self.values)
         average_similarity = np.mean(similarities[self.i])
         
+        print(similarities)
+
         #print(average_similarity)
         # assert not np.isnan(the_cost), f"{kernel=} {K=} {y=}"
-        return average_similarity 
+        return abs(average_similarity-0.5) 
     
     def to_quanvolute_patch(self, circuit, patch):
         output = circuit.phi(patch.ravel())

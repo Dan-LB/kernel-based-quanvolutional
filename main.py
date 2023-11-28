@@ -14,6 +14,8 @@ import torchvision.transforms as transforms
 from torchvision import datasets
 from torch.utils.data import DataLoader
 
+from util import test, train
+
 from PIL import Image
 
 from qiskit import QuantumCircuit, Aer, execute
@@ -26,7 +28,7 @@ from CustomDataset import CustomDataset, load_custom_dataset
 
 from darqk.core import Ansatz
 
-from util import test, train
+
 
 import matplotlib.pyplot as plt
 
@@ -96,7 +98,7 @@ def plot_some():
         print(first_image[channel])
     plt.show()
 
-quanvPQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_PQC, 
+quanvPQC_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
                          PQC_qubits=4, PQC_L=15,
                          verbose=True)
 """
@@ -109,14 +111,27 @@ classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constan
 """
 
 
-"""
-create_and_process(n=100, size = 10, model = quanvPQC_model, folder_name=folder_name)
+folder_name = "opt_test"
+
+X, y = get_data(n=100, size=10)
+
+X_and_y = (X.numpy(), y.numpy())
+
+copy_of_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
+                                        PQC_qubits=4, PQC_L=15,
+                                        verbose=True)
+
+quanvPQC_model.quanv.optimize_layer(X_and_y, quanvPQC_model.quanv, copy_of_model) #<--- palesemente idea stupida
+
+#create_and_process(n=100, size = 10, model = quanvPQC_model, folder_name=folder_name)
 
 #X, _ = get_data(n=10, size=10)
 
 
 #raise Exception("Sto testando altre robe")
 
+
+
 load_path = constants.SAVE_PATH + "\\" + folder_name
 
 q_images = np.load(load_path + "\q_images.npy")
@@ -133,60 +148,4 @@ print("Printing old dataset shape:")
 print(images.shape)
 
 
-quanvPQC_model.on_preprocessed = True
 
-
-optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
-device = torch.device("cpu")
-
-for epoch in range(1, 100):  # 100 epochs
-    train(quanvPQC_model, device, train_loader, optimizer, epoch)
-    loss, correct = test(quanvPQC_model, device, test_loader)
-
-print("!!!!!!!!!!\n\n\n\n")
-
-
-print("Printing new dataset shape:")
-n_train, channels, w, h = q_images.shape
-print(q_images.shape)
-print("Printing old dataset shape:")
-print(images.shape)
-
-"""
-
-
-
-quanvVQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_VQC, 
-                         VQC_n_shots=1000, VQC_encoding=constants.THRESHOLD,
-                         verbose=True)
-
-
-
-
-
-quanvVQC_model.quanv.generate_look_up_table()
-quanvVQC_model.verbose = True
-quanvVQC_model.quanv.verbose = True
-
-folder_name = "test"
-#raise Exception("!!!!!")
-
-create_and_process(n=70000, size = 28, model = quanvVQC_model, folder_name=folder_name)
-load_path = constants.SAVE_PATH + "\\" + folder_name
-
-q_images = np.load(load_path + "\q_images.npy")
-q_labels = np.load(load_path + "\labels.npy")
-images = np.load(load_path + "\images.npy")
-
-plot_some()
-
-quanvVQC_model.on_preprocessed = True
-
-train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_images, labels_file=q_labels)
-
-optimizer = optim.Adam(quanvVQC_model.parameters(), lr=0.001) #0.001
-device = torch.device("cpu")
-
-for epoch in range(1, 100):  # 100 epochs
-    train(quanvVQC_model, device, train_loader, optimizer, epoch)
-    loss, correct = test(quanvVQC_model, device, test_loader)
