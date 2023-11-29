@@ -89,11 +89,11 @@ class LayerEvaluator(KernelEvaluator):
         circuits_list  = self.obtain_layer_from_big_K(kernel)
         model.quanv.circuits = circuits_list
 
-        print("Getting data...")
+        #print("Getting data...")
         X, y = get_data(n=100, size=10) #questa cosa non ha senso, meglio salvare questi dati da qualche parte
         model.verbose = False #redundacy
         model.quanv.verbose = False
-        print("Preprocessing dataset...")
+        #print("Preprocessing dataset...")
         q_X = model.preprocess_dataset(X)
 
         model.on_preprocessed = True
@@ -194,6 +194,6 @@ def get_data(n = 200, size = 10):
     for batch_idx, (data, labels) in enumerate(train_loader):
         # data is a tensor of shape (n_train, 1, 28, 28), labels is a tensor of shape (n_train,)
         #print(f"Batch {batch_idx + 1}:")
-        print(f"Data shape: {data.shape}")
-        print(f"Labels shape: {labels.shape}")
+        #print(f"Data shape: {data.shape}")
+        #print(f"Labels shape: {labels.shape}")
         return data, labels  # Stop after the first batch

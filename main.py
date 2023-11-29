@@ -113,7 +113,22 @@ classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constan
 
 folder_name = "opt_test"
 
+X, y = get_data(n=1000, size=10)
+q_X = quanvPQC_model.preprocess_dataset(X)
 
+train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X, labels_file=y)
+
+device = "cpu"
+optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
+
+for epoch in range(1, 100):  # 100 epochs
+    train(quanvPQC_model, device, train_loader, optimizer, epoch)
+    loss, correct = test(quanvPQC_model, device, test_loader)
+    print(correct)
+
+quanvPQC_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
+                         PQC_qubits=4, PQC_L=15,
+                         verbose=True)
 
 copy_of_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
                                         PQC_qubits=4, PQC_L=15,
@@ -132,7 +147,7 @@ optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
 for epoch in range(1, 100):  # 100 epochs
     train(quanvPQC_model, device, train_loader, optimizer, epoch)
     loss, correct = test(quanvPQC_model, device, test_loader)
-
+    print(correct)
 
 load_path = constants.SAVE_PATH + "\\" + folder_name
 

@@ -142,9 +142,9 @@ class PQCQuanv(nn.Module):
 
         X, Y = None, None
         bayesian_opt = BayesianOptimizer(K, X, Y, ke)
-        K = bayesian_opt.optimize(5, 5)
+        K = bayesian_opt.optimize(5, 4)
 
-        self.circuits = self.obtain_big_K_from_layer(K)
+        self.circuits = self.obtain_layer_from_big_K(K)
         return 0
     
     def obtain_big_K_from_layer(self):
