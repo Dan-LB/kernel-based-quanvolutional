@@ -100,7 +100,7 @@ class PQCQuanv(nn.Module):
             average_time_per_image = elapsed_time / (i + 1)
             estimated_remaining_time = average_time_per_image * (batch_size - i - 1)
             
-            if self.verbose and i%10==9:
+            if self.verbose == True and i%10==9:
                 print(f"Time for image {i+1}: {image_time:.2f} seconds")
                 print(f"Estimated remaining time: {estimated_remaining_time/60:.2f} minutes\n")
 
@@ -130,64 +130,11 @@ class PQCQuanv(nn.Module):
         output = circuit.phi(patch.ravel())
         return output
     
-    def generate_patches(self, images, n_patches):
-        self.patches = extract_patches(images, n=n_patches)
-
-    def compute_similarity_array(self):
-        """
-        In realtà ci sono due tipi di cose che posso provare a calcolare:
-        1) fidelity (ma che è? come si calcola? è dataset dependant?)
-        2) la "patches output similarity" che mi sembra facile e naturale
-        
-
-        qualche calcoletto preliminare
-            10 PQC (3x3, 15 op, 4 qubit) richiedono su una pic 10x10 (ovvero 8x8 = 64 applicazioni) 4 secondi circa
-            supponendo di avere in fase iniziale 10 PQC da ottimizzare, con 100 patch (calcolabili in meno di 4 secondi)
-            supponendo di usare un BO con 5 applicazioni per iterazione, 10 iterazioni
-            dovremmo calcolare per ogni PQC, 50 possibili PQC per ogni patch, quindi 5000 applicazioni, meno di 40 secondi
-            un ciclo completo di ottimizzazione richiede quindi 400 secondi
-            ottimizzando iterativamente 10 volte, abbiamo 4000 secondi, circa 1h
-
-            
-        lato similarità, alcune idee:   
-            MSE (banale)
-            Average KATZ Index
-            Distanza dallo span lineare 
-        """
-
-
-        patches = self.patches
-        n_patches = len(patches)
-
-        n_circuits = self.out_channels
-        values = np.zeros((n_circuits, n_patches))
-        circuits = self.circuits
-        for i in range(n_patches):
-            current_patch = patches[i].numpy()
-            for j in range(n_circuits):
-                #print(circuits[j])
-                values[j, i] =  self.to_quanvolute_patch(circuits[j], current_patch)
-
-        self.values = values
-        return values
-
-    def compute_similarity_from_values(self, i):
-        similarities = cosine_similarity(self.values)
-        average_similarity = np.mean(similarities[i])
-        return average_similarity
-
-    def optimize_PQC_i(self, i):
-        X, Y = None, None
-
-        kernel = self.circuits[i]
-        ke = CustomEvaluator(i, self.values, self.patches)
-        bayesian_opt = BayesianOptimizer(kernel, X, Y, ke)
-        kernel = bayesian_opt.optimize(5, 5, 1)
-        self.circuits[i] = kernel
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #self.compute_similarity_array() #forse questo serve :)
 
     def optimize_layer(self, X_and_y, L, copy_of_model):
+
+        print("Initializing optimization phase.")
+        print("ALERT: some stuff should be changed (e.g. the X_and_y)... :)")
 
         K = self.obtain_big_K_from_layer()
 
@@ -195,7 +142,7 @@ class PQCQuanv(nn.Module):
 
         X, Y = None, None
         bayesian_opt = BayesianOptimizer(K, X, Y, ke)
-        K = bayesian_opt.optimize(5, 5, 1)
+        K = bayesian_opt.optimize(5, 5)
 
         self.circuits = self.obtain_big_K_from_layer(K)
         return 0
@@ -203,7 +150,7 @@ class PQCQuanv(nn.Module):
     def obtain_big_K_from_layer(self):
         op_list = []
         for circuit in self.circuits:
-            print(circuit.ansatz.operation_list)
+            #print(circuit.ansatz.operation_list)
             for op in circuit.ansatz.operation_list:
                 op_list.append(op)
 

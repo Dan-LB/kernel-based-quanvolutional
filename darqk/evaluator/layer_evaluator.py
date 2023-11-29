@@ -50,7 +50,7 @@ class LayerEvaluator(KernelEvaluator):
     def __init__(self, X_and_y, L, copy_of_model):
 
         #parto da X e Y come coppia dei file np con data e label
-        self.X, self.y = X_and_y #voglio che questo
+
         self.layer = L 
         #self.model_structure = model_structure
 
@@ -89,17 +89,22 @@ class LayerEvaluator(KernelEvaluator):
         circuits_list  = self.obtain_layer_from_big_K(kernel)
         model.quanv.circuits = circuits_list
 
+        print("Getting data...")
+        X, y = get_data(n=100, size=10) #questa cosa non ha senso, meglio salvare questi dati da qualche parte
+        model.verbose = False #redundacy
+        model.quanv.verbose = False
+        print("Preprocessing dataset...")
+        q_X = model.preprocess_dataset(X)
+
+        model.on_preprocessed = True
+
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         device = torch.device("cpu")
 
-        train_loader, test_loader = self.split_to_test_and_train(size=1000)
-
-        print("Effettuando valutazione.")
-        print("In ogni caso, prima di training e testing sarebbe meglio effettuare il preprocessing :)")
+        train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X.numpy(), labels_file=y.numpy())
 
         #q_X = model.preprocess_dataset(X)
         #y = y
-
 
 
         for epoch in range(1, 100):  # 100 epochs
@@ -107,10 +112,10 @@ class LayerEvaluator(KernelEvaluator):
             loss, correct = test(model, device, test_loader)
 
         accuracy = correct
-        print(accuracy)
+        print("Accuracy of last evaluation:" +str(accuracy))
         return -accuracy
 
-    def split_to_test_and_train(self, size = 50):
+    def split_to_test_and_train(self, size = 50): #questo non si usa
         """
         """
         train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=self.X[:size], labels_file=self.y[:size])
@@ -167,3 +172,28 @@ def test(model, device, test_loader):
     test_loss /= len(test_loader.dataset)
     #print(f'Test set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({100. * correct / len(test_loader.dataset):.0f}%)\n')
     return test_loss, 100. * correct / len(test_loader.dataset)
+
+
+def get_data(n = 200, size = 10):
+    # Define the transform to preprocess the MNIST images
+    transform = transforms.Compose([
+        transforms.Resize((size, size)),
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)  # Convert images to PyTorch tensors
+    ])
+
+    # Download the MNIST dataset and apply the transform
+    mnist_train = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+
+    # Set the number of training examples you want in the batch
+
+    # Create a DataLoader with a batch size of n_train
+    train_loader = DataLoader(mnist_train, batch_size=n, shuffle=True)
+
+    # Iterate through the DataLoader to get the first batch
+    for batch_idx, (data, labels) in enumerate(train_loader):
+        # data is a tensor of shape (n_train, 1, 28, 28), labels is a tensor of shape (n_train,)
+        #print(f"Batch {batch_idx + 1}:")
+        print(f"Data shape: {data.shape}")
+        print(f"Labels shape: {labels.shape}")
+        return data, labels  # Stop after the first batch

@@ -113,23 +113,25 @@ classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constan
 
 folder_name = "opt_test"
 
-X, y = get_data(n=100, size=10)
 
-X_and_y = (X.numpy(), y.numpy())
 
 copy_of_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
                                         PQC_qubits=4, PQC_L=15,
                                         verbose=True)
 
-quanvPQC_model.quanv.optimize_layer(X_and_y, quanvPQC_model.quanv, copy_of_model) #<--- palesemente idea stupida
+quanvPQC_model.quanv.optimize_layer(None, quanvPQC_model.quanv, copy_of_model) #<--- palesemente idea stupida
 
-#create_and_process(n=100, size = 10, model = quanvPQC_model, folder_name=folder_name)
+X, y = get_data(n=1000, size=10)
+q_X = quanvPQC_model.preprocess_dataset(X)
 
-#X, _ = get_data(n=10, size=10)
+train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X, labels_file=y)
 
+device = "cpu"
+optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
 
-#raise Exception("Sto testando altre robe")
-
+for epoch in range(1, 100):  # 100 epochs
+    train(quanvPQC_model, device, train_loader, optimizer, epoch)
+    loss, correct = test(quanvPQC_model, device, test_loader)
 
 
 load_path = constants.SAVE_PATH + "\\" + folder_name
@@ -138,14 +140,6 @@ q_images = np.load(load_path + "\q_images.npy")
 q_labels = np.load(load_path + "\labels.npy")
 images = np.load(load_path + "\images.npy")
 
-
-train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_images, labels_file=q_labels)
-
-print("Printing new dataset shape:")
-n_train, channels, w, h = q_images.shape
-print(q_images.shape)
-print("Printing old dataset shape:")
-print(images.shape)
 
 
 

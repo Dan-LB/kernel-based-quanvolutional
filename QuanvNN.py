@@ -92,8 +92,9 @@ class QuanvNN(nn.Module):
 
 
     def forward(self, x):
-        x = x.permute(0, 2, 1, 3)
+        
         if self.on_preprocessed:
+            x = x.permute(0, 2, 1, 3) #mmmhhh???
             x = self.pool(F.relu(x))
         else:
             x = self.pool(F.relu(self.quanv(x))) #10x10 -> 4x4 [10]
