@@ -70,6 +70,8 @@ class QuanvNN(nn.Module):
             self.info["PQC_qubits"] = PQC_qubits
             self.info["PQC_L"] = PQC_L
 
+
+
         elif self.quanv_model == constants.CLASSICAL_CNN:
             print("Class cnn preferred")
             self.quanv = nn.Conv2d(1, out_channels = self.out_channels, kernel_size=self.kernel_size, padding=0)
@@ -80,7 +82,8 @@ class QuanvNN(nn.Module):
         else:
             raise Exception("Unknown model name")
 
-        self.conv2 = nn.Conv2d(self.out_channels, 64, kernel_size=3, padding=0)
+        self.conv1dot5 = nn.Conv2d(self.out_channels, 50, kernel_size=3, padding=0)
+        self.conv2 = nn.Conv2d(50, 64, kernel_size=3, padding=0)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.fc1 = nn.Linear(64 * 1 * 1, 1024)
         self.fc2 = nn.Linear(1024, 10)
@@ -94,11 +97,13 @@ class QuanvNN(nn.Module):
     def forward(self, x):
         
         if self.on_preprocessed:
-            x = x.permute(0, 2, 1, 3) #mmmhhh???
-            x = self.pool(F.relu(x))
+            x = x.permute(0, 2, 1, 3) 
+            #mmmhhh???
+            x = F.relu(x)
         else:
-            x = self.pool(F.relu(self.quanv(x))) #10x10 -> 4x4 [10]
+            x = F.relu(self.quanv(x)) #10x10 -> 4x4 [10]
    
+        x = self.pool(F.relu(self.conv1dot5(x)))
         x = self.pool(F.relu(self.conv2(x))) #1x1 [64]?
         x = x.view(-1, 64 * 1 * 1)
         x = F.relu(self.fc1(x))
@@ -106,6 +111,7 @@ class QuanvNN(nn.Module):
         return F.log_softmax(x, dim=1)
     
     def preprocess_dataset(self, images):
+            print("ALERT: ma stiamo facendo un transpile ottimizzato per bene?")
             q_images = self.quanv(images)
             return q_images
 

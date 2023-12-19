@@ -90,7 +90,7 @@ class LayerEvaluator(KernelEvaluator):
         model.quanv.circuits = circuits_list
 
         #print("Getting data...")
-        X, y = get_data(n=100, size=10) #questa cosa non ha senso, meglio salvare questi dati da qualche parte
+        X, y = get_data(n=300, size=10) #questa cosa non ha senso, meglio salvare questi dati da qualche parte
         model.verbose = False #redundacy
         model.quanv.verbose = False
         #print("Preprocessing dataset...")

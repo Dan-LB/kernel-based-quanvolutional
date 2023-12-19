@@ -1,0 +1,6 @@
+kernel size: 3
+out channels: 4
+quanvolutional model: RANDOM_PQC
+PQC_qubits: 6
+PQC_L: 15
+Final accuracy: 88.5

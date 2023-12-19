@@ -32,6 +32,7 @@ def load_custom_dataset(batch_size, npy_file, labels_file, train_ratio=0.8):
 
     # Split the custom dataset into training and testing sets
     dataset_size = len(custom_dataset)
+    print(dataset_size)
     train_size = int(train_ratio * dataset_size)
     test_size = dataset_size - train_size
     train_dataset, test_dataset = random_split(custom_dataset, [train_size, test_size])

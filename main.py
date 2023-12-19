@@ -71,14 +71,14 @@ def create_and_process(n, size, model, folder_name):
 
     
 
-    path = constants.SAVE_PATH + "\\" + folder_name 
+    path = constants.SAVE_PATH + "/" + folder_name 
 
     if not os.path.exists(path):
         os.makedirs(path)
 
-    np.save(path + "\images.npy", X)
-    np.save(path + "\q_images.npy", q_X)
-    np.save(path + "\labels.npy", y)
+    np.save(path + "/images.npy", X)
+    np.save(path + "/q_images.npy", q_X)
+    np.save(path + "/labels.npy", y)
 
     with open(os.path.join(path, "model_info.txt"), "w") as info_file:
 
@@ -86,74 +86,73 @@ def create_and_process(n, size, model, folder_name):
 
         for key, value in model.info.items():
             info_file.write(f"{key}: {value}\n")
-
-def plot_some():
-    first_image = q_images[0]*255
-# Plot each channel as a black and white image
-    for channel in range(10):
-        plt.subplot(1, 10, channel + 1)
-        plt.imshow(first_image[channel], cmap='gray')
-        plt.axis('off')  # Turn off axis labels and ticks
-        plt.title(f'Channel {channel + 1}')
-        print(first_image[channel])
-    plt.show()
-
-quanvPQC_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
-                         PQC_qubits=4, PQC_L=15,
-                         verbose=True)
-"""
-quanvVQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_VQC, 
-                         VQC_n_shots=1000, VQC_encoding=constants.ROTATIONAL,
-                         verbose=True)
-
-classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constants.CLASSICAL_CNN,
-                             verbose=True)
-"""
+    
+    return q_X
 
 
-folder_name = "opt_test"
+#n_filters = 4
+#PQC_qubits = 4
 
-X, y = get_data(n=1000, size=10)
-q_X = quanvPQC_model.preprocess_dataset(X)
+for n_filters in [4]:#, 10, 25]:
+    
+    for PQC_qubits in [4]:#, 6]:
 
-train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X, labels_file=y)
+        quanvPQC_model = QuanvNN(kernel_size=3, out_channels=n_filters, quanv_model=constants.RANDOM_PQC, 
+                                PQC_qubits=PQC_qubits, PQC_L=15,
+                                verbose=True)
 
-device = "cpu"
-optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
+        quanvPQC_model.quanv.padding = 1
 
-for epoch in range(1, 100):  # 100 epochs
-    train(quanvPQC_model, device, train_loader, optimizer, epoch)
-    loss, correct = test(quanvPQC_model, device, test_loader)
-    print(correct)
 
-quanvPQC_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
-                         PQC_qubits=4, PQC_L=15,
-                         verbose=True)
+        #folder_name = "opt_test"
 
-copy_of_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
-                                        PQC_qubits=4, PQC_L=15,
-                                        verbose=True)
+        #X, y = get_data(n=100, size=10)
+        #q_X = quanvPQC_model.preprocess_dataset(X)
 
-quanvPQC_model.quanv.optimize_layer(None, quanvPQC_model.quanv, copy_of_model) #<--- palesemente idea stupida
+        name_s = "automatic_testing_size"+str(n_filters)+"_nq"+str(PQC_qubits)+"_5-5-5"
 
-X, y = get_data(n=1000, size=10)
-q_X = quanvPQC_model.preprocess_dataset(X)
+        #q_X = create_and_process(n=1000, size=10, model=quanvPQC_model, folder_name=name_s)
 
-train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X, labels_file=y)
+        #quanvPQC_model.on_preprocessed = True
 
-device = "cpu"
-optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
+        #train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X.numpy(), labels_file=y.numpy())
 
-for epoch in range(1, 100):  # 100 epochs
-    train(quanvPQC_model, device, train_loader, optimizer, epoch)
-    loss, correct = test(quanvPQC_model, device, test_loader)
-    print(correct)
+        #device = "cpu"
+        #optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
 
-load_path = constants.SAVE_PATH + "\\" + folder_name
+        #from copy import deepcopy
+        #copy_of_model = deepcopy(quanvPQC_model)
 
-q_images = np.load(load_path + "\q_images.npy")
-q_labels = np.load(load_path + "\labels.npy")
-images = np.load(load_path + "\images.npy")
+        
+        quanvPQC_model.quanv.optimize_layer(None, quanvPQC_model) #<--- palesemente idea stupida
+
+        X, y = get_data(n=1000, size=10)
+        q_X = quanvPQC_model.preprocess_dataset(X)
+
+        quanvPQC_model.on_preprocessed = True
+
+        train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=q_X.numpy(), labels_file=y.numpy())
+
+        device = "cpu"
+        optimizer = optim.Adam(quanvPQC_model.parameters(), lr=0.001)
+
+        final_c = None
+
+        for epoch in range(1, 100):  # 100 epochs
+            train(quanvPQC_model, device, train_loader, optimizer, epoch)
+            loss, correct = test(quanvPQC_model, device, test_loader)
+            print(correct)
+            final_c = correct
+
+        # Open the file in write mode and write the result
+        with open(name_s, 'w') as file:
+
+            for key, value in quanvPQC_model.info.items():
+                file.write(f"{key}: {value}\n")
+            
+            file.write("Final accuracy: "+str(final_c))
+
+
 
 
 

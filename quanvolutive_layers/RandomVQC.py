@@ -192,7 +192,8 @@ class VQCQuanv(nn.Module):
                 for i in range(n*n):
                     row = i // n
                     col = i % n
-                    theta = patch[row][col]*3.14
+                    theta = patch[row][col]*3.1415*2
+                    print("!!! controlla rotational enc!!!")
                     emb.rx(theta, i)
             
 

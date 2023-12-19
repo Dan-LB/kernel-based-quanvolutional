@@ -5,6 +5,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 
+from copy import deepcopy
+
 import time
 
 import os
@@ -40,13 +42,14 @@ from itertools import product
 
 
 class PQCQuanv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size,  stride=1, verbose = False, n_qubits = 10, L=10):
+    def __init__(self, in_channels, out_channels, kernel_size,  stride=1, padding=0, verbose = False, n_qubits = 10, L=10):
         super(PQCQuanv, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.stride = stride
-        
+        self.padding = padding
+
         self.simulator = Aer.get_backend('qasm_simulator')
 
         self.n_qubits = n_qubits
@@ -56,7 +59,9 @@ class PQCQuanv(nn.Module):
 
         self.values = None
 
-        self.copy_of_model = None
+        #self.copy_of_model = None
+
+        self.parent = None
 
         # Initialize weights and bias
 
@@ -71,9 +76,10 @@ class PQCQuanv(nn.Module):
 
         # Calculate output dimensions
         batch_size, _, height, width = x.shape
-        out_height = (height - self.kernel_size) // self.stride + 1
-        out_width = (width - self.kernel_size) // self.stride + 1
-
+        padded_height = height + 2 * self.padding
+        padded_width = width + 2 * self.padding
+        out_height = (padded_height - self.kernel_size) // self.stride + 1
+        out_width = (padded_width - self.kernel_size) // self.stride + 1
 
         # Create output tensor
         output = torch.zeros((batch_size, self.out_channels, out_height, out_width))
@@ -90,8 +96,11 @@ class PQCQuanv(nn.Module):
                         h_end = h_start + self.kernel_size
                         w_start = w * self.stride
                         w_end = w_start + self.kernel_size
-                        patch = x[i, :, h_start:h_end, w_start:w_end].numpy()
-                        patch = patch[0]*math.pi/2
+                        
+                        # Apply padding to input tensor
+                        padded_x = torch.nn.functional.pad(x[i], (self.padding, self.padding, self.padding, self.padding))
+                        patch = padded_x[:, h_start:h_end, w_start:w_end].numpy()
+                        patch = patch[0] * math.pi * 2
                         output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch)
 
             image_end_time = time.time()
@@ -112,6 +121,9 @@ class PQCQuanv(nn.Module):
         """
 
         """
+
+        print("Ancora di nuovo devo ottimizzare il circuito!!!!!!!!!")
+
         new_ansatz = Ansatz(self.kernel_size**2, self.n_qubits, self.L)
         new_ansatz.initialize_to_random_circuit()
         #new_ansatz = transpile(new_ansatz, self.simulator)
@@ -131,18 +143,18 @@ class PQCQuanv(nn.Module):
         return output
     
 
-    def optimize_layer(self, X_and_y, L, copy_of_model):
+    def optimize_layer(self, X_and_y, parent):
 
         print("Initializing optimization phase.")
-        print("ALERT: some stuff should be changed (e.g. the X_and_y)... :)")
+        print("\nALERT: some stuff should be changed (e.g. the X_and_y)... :)\n")
 
         K = self.obtain_big_K_from_layer()
 
-        ke = LayerEvaluator(X_and_y, L, copy_of_model)
+        ke = LayerEvaluator(X_and_y, self, deepcopy(parent))
 
         X, Y = None, None
         bayesian_opt = BayesianOptimizer(K, X, Y, ke)
-        K = bayesian_opt.optimize(5, 4)
+        K = bayesian_opt.optimize(5, 5, 5) ###!!!!!!!!!!
 
         self.circuits = self.obtain_layer_from_big_K(K)
         return 0
