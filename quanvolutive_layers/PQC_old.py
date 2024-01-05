@@ -63,13 +63,6 @@ class PQCQuanv(nn.Module):
 
         self.parent = None
 
-        self.look_up = {}
-
-        self.discretizer = 2
-
-        self.counter1 = 0
-        self.counter2 = 0
-
         # Initialize weights and bias
 
         start_time = time.time()
@@ -107,27 +100,8 @@ class PQCQuanv(nn.Module):
                         # Apply padding to input tensor
                         padded_x = torch.nn.functional.pad(x[i], (self.padding, self.padding, self.padding, self.padding))
                         patch = padded_x[:, h_start:h_end, w_start:w_end].numpy()
-
-                        if False: #to use without look-up and discretization
-                            patch = patch[0] * math.pi * 2       
-                            output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch)
-                        else:
-                            patch = patch[0]
-                            patch = discretize_patch(patch, self.discretizer)
-                            value =  self.look_up.get((j, tuple(patch.reshape(-1))))
-
-                            if value == None:
-                                value =  self.to_quanvolute_patch(self.circuits[j], patch * math.pi * 2) 
-                                self.look_up[(j, tuple(patch.reshape(-1)))] = value
-                                #print(self.look_up)
-                                self.counter1 += 1
-                                #print("New patch, total: "+str(self.counter1))
-
-                            else:
-                                self.counter2 += 1
-                                #print("Patch already in lookup. Duplicated patches found: "+str(self.counter2))
-
-                            output[i, j, h, w] = value #questo funziona!!!
+                        patch = patch[0] * math.pi * 2
+                        output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch)
 
             image_end_time = time.time()
             image_time = image_end_time - image_start_time
@@ -153,21 +127,21 @@ class PQCQuanv(nn.Module):
         new_ansatz = Ansatz(self.kernel_size**2, self.n_qubits, self.L)
         new_ansatz.initialize_to_random_circuit()
 
-        #print(new_ansatz)
+        print(new_ansatz)
 
-        #qc = to_qiskit_circuit(new_ansatz)
+        qc = to_qiskit_circuit(new_ansatz)
 
-        #print(qc)
+        print(qc)
 
         kernel = KernelFactory.create_kernel(new_ansatz, "Z"*self.n_qubits, KernelType.OBSERVABLE)
 
-        #to_transpile_k = kernel.to_qiskit_circuit()
-        #print(to_transpile_k)
+        to_transpile_k = kernel.to_qiskit_circuit()
+        print(to_transpile_k)
  
-        #new_ansatz = transpile(to_transpile_k, self.simulator)
-        #print(new_ansatz)
-        #print("\n\n")
-        #kernel = KernelFactory.create_kernel(new_ansatz, "Z"*self.n_qubits, KernelType.OBSERVABLE)
+        new_ansatz = transpile(to_transpile_k, self.simulator)
+        print(new_ansatz)
+        print("\n\n")
+        kernel = KernelFactory.create_kernel(new_ansatz, "Z"*self.n_qubits, KernelType.OBSERVABLE)
 
         return kernel
 
@@ -236,21 +210,9 @@ class PQCQuanv(nn.Module):
                 return new_layer
         
         
-def discretize(value, levels):
-    #return round(value * (levels)) / (levels)
-    return math.floor(value*levels*0.9999) / (levels-1)
 
-def discretize_patch(patch, levels):
-    for ii in range(3*3):
-        row = ii // 3
-        col = ii % 3
-        patch[row][col] = discretize(patch[row][col], levels)
-    return patch
 
 def to_qiskit_circuit(self):
-
-    raise Exception("Non funziona!!!")
-
     from qiskit import QuantumCircuit
     from qiskit.circuit import ParameterVector
     from qiskit.circuit.library import PauliEvolutionGate

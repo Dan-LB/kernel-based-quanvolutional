@@ -50,12 +50,7 @@ class VQCQuanv(nn.Module):
         self.n_shots = n_shots
         self.verbose = verbose
 
-        self.look_up = {}
-
-        self.counter1 = 0
-        self.counter2 = 0
-
-        self.discretizer = 2
+        self.look_up = None
 
         # Initialize weights and bias
         if self.verbose:
@@ -90,25 +85,19 @@ class VQCQuanv(nn.Module):
                         w_end = w_start + self.kernel_size
                         patch = x[i, :, h_start:h_end, w_start:w_end].numpy()
                         patch = patch[0]
-
-                        if self.encoding == constants.THRESHOLD:
-                            patch = discretize_patch(patch, 3)
-                            value =  self.look_up.get((j, tuple(patch.reshape(-1))))
-
-                            if value == None:
-                                value =  self.to_quanvolute_patch(self.circuits[j], patch, encoding=self.encoding) 
-                                self.look_up[(j, tuple(patch.reshape(-1)))] = value
-                                #print(self.look_up)
-                                self.counter1 += 1
-                                print("New patch, total: "+str(self.counter1))
-
-                            else:
-                                self.counter2 += 1
-                                #print("Patch already in lookup. Duplicated patches found: "+str(self.counter2))
-
-                            output[i, j, h, w] = value #questo funziona!!!
+                        if self.look_up == None:
+                            output[i, j, h, w] = self.to_quanvolute_patch(self.circuits[j], patch, encoding=self.encoding)
                         else:
-                            raise Exception("Errore: self.encoding != THRESHOLD")
+                            if self.encoding == constants.THRESHOLD:
+                                for ii in range(3*3):
+                                    row = ii // 3
+                                    col = ii % 3
+                                    if patch[row][col] >= 0.5:
+                                        patch[row][col] = int(0)
+                                    else:
+                                        patch[row][col] = int(1)
+                                value =  self.look_up.get((j, tuple(patch.reshape(-1))))
+                                output[i, j, h, w] = value #questo funziona!!!
 
 
             image_end_time = time.time()
@@ -220,9 +209,6 @@ class VQCQuanv(nn.Module):
             return sum_1s
     
     def generate_look_up_table(self):
-
-        raise Exception("Deprecated! Adaptive Look-up table implemented.")
-
         print("Currently working only for 3x3.")
         print("TO DO: adaptive look-up generation instead")
         self.look_up = {}
@@ -239,20 +225,10 @@ class VQCQuanv(nn.Module):
                 # Replace this with your actual computation logic
                 value =  self.to_quanvolute_patch(self.circuits[j], combination, encoding=self.encoding) 
                 self.look_up[(j, tuple(combination.reshape(-1)))] = value
-
+        #print(self.look_up)
         end_time = time.time()
         print(self.look_up)
         print("Look up table generated.")
         print("Time required: "+str(end_time-start_time))
         
 
-def discretize(value, levels):
-    #return round(value * (levels)) / (levels)
-    return math.floor(value*levels*0.9999) / (levels-1)
-
-def discretize_patch(patch, levels):
-    for ii in range(3*3):
-        row = ii // 3
-        col = ii % 3
-        patch[row][col] = discretize(patch[row][col], levels)
-    return patch
