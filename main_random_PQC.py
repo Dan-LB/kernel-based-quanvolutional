@@ -136,13 +136,13 @@ quanvVQC_model = QuanvNN(kernel_size=3, out_channels=1, quanv_model=constants.RA
 
                          """
 
-quanvPQC_model = QuanvNN(kernel_size=3, out_channels=1, quanv_model=constants.RANDOM_PQC, 
+quanvPQC_model = QuanvNN(kernel_size=3, out_channels=8, quanv_model=constants.RANDOM_PQC, 
                          PQC_qubits=4, PQC_L=15,
                          verbose=True)
 
-quanvPQC_model.quanv.discretizer = 4
+quanvPQC_model.quanv.discretizer = 5
 
-X, y = get_data_specific(n=60000, size=10, labels_list=[0,1])
+X, y = get_data(n=60000, size=28)
 
 #quanvVQC_model.quanv.generate_look_up_table() #1 min e 14 sec con, 1 min e 6 secondi senza
 

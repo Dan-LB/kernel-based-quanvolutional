@@ -64,8 +64,8 @@ class QuanvNN(nn.Module):
 
 
         elif self.quanv_model == constants.RANDOM_PQC:
-
-            self.quanv = PQCQuanv(1, out_channels = self.out_channels, kernel_size=self.kernel_size, verbose = verbose, 
+            # grave inconsistenza con padding, padding = 1 implementa padding = 2
+            self.quanv = PQCQuanv(1, out_channels = self.out_channels, kernel_size=self.kernel_size, padding=1, verbose = verbose, 
                                   n_qubits = PQC_qubits, L=PQC_L)
             self.info["PQC_qubits"] = PQC_qubits
             self.info["PQC_L"] = PQC_L
@@ -82,8 +82,8 @@ class QuanvNN(nn.Module):
         else:
             raise Exception("Unknown model name")
 
-        #self.conv1dot5 = nn.Conv2d(self.out_channels, 50, kernel_size=3, padding=0)
-        self.conv2 = nn.Conv2d(self.out_channels, 32, kernel_size=3, padding=1)
+        self.conv1dot5 = nn.Conv2d(self.out_channels, 16, kernel_size=3, padding=0)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.fc1 = nn.Linear(32 * 6 * 6, 64)
         self.fc2 = nn.Linear(64, 10)
@@ -104,8 +104,8 @@ class QuanvNN(nn.Module):
             x = x.permute(0, 2, 1, 3) 
             x = F.relu(self.quanv(x)) #10x10 -> 4x4 [10]
    
-        x = self.pool(x)
-        #x = self.pool(F.relu(self.conv1dot5(x)))
+        #x = self.pool(x)
+        x = self.pool(F.relu(self.conv1dot5(x)))
         x = self.pool(F.relu(self.conv2(x))) #1x1 [64]?
         x = x.view(-1, 32 * 6 * 6)
         x = F.relu(self.fc1(x))
