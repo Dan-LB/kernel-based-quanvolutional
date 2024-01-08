@@ -82,11 +82,11 @@ class QuanvNN(nn.Module):
         else:
             raise Exception("Unknown model name")
 
-        self.conv1dot5 = nn.Conv2d(self.out_channels, 50, kernel_size=3, padding=0)
-        self.conv2 = nn.Conv2d(50, 64, kernel_size=3, padding=0)
+        #self.conv1dot5 = nn.Conv2d(self.out_channels, 50, kernel_size=3, padding=0)
+        self.conv2 = nn.Conv2d(self.out_channels, 32, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(64 * 1 * 1, 1024)
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc1 = nn.Linear(32 * 6 * 6, 64)
+        self.fc2 = nn.Linear(64, 10)
 
         self.on_preprocessed = False
 
@@ -101,11 +101,13 @@ class QuanvNN(nn.Module):
             #mmmhhh???
             x = F.relu(x)
         else:
+            x = x.permute(0, 2, 1, 3) 
             x = F.relu(self.quanv(x)) #10x10 -> 4x4 [10]
    
-        x = self.pool(F.relu(self.conv1dot5(x)))
+        x = self.pool(x)
+        #x = self.pool(F.relu(self.conv1dot5(x)))
         x = self.pool(F.relu(self.conv2(x))) #1x1 [64]?
-        x = x.view(-1, 64 * 1 * 1)
+        x = x.view(-1, 32 * 6 * 6)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)

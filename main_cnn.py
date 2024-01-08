@@ -63,6 +63,29 @@ def get_data(n = 200, size = 10):
         print(f"Labels shape: {labels.shape}")
         return data, labels  # Stop after the first batch
 
+def get_data_specific(n=200, size=10, labels_list=[0, 1]):
+    # Define the transform to preprocess the MNIST images
+    transform = transforms.Compose([
+        transforms.Resize((size, size)),
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)  # Convert images to PyTorch tensors
+    ])
+
+    # Download the MNIST dataset and apply the transform
+    mnist_train = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+
+    # Create a DataLoader with a batch size of n
+    train_loader = DataLoader(mnist_train, batch_size=n, shuffle=True)
+
+    for batch_idx, (data, labels) in enumerate(train_loader):
+        # Filter data and labels based on the specified labels_list
+        mask = [label in labels_list for label in labels]
+        filtered_data = data[mask]
+        filtered_labels = labels[mask]
+        print(f"Data shape: {filtered_data.shape}")
+        print(f"Labels shape: {filtered_labels.shape}")
+        return filtered_data, filtered_labels 
+
 def create_and_process(n, size, model, folder_name):
     X, y = get_data(n, size)
     print(f"\nProcessing dataset of {n} images...\n\n")
@@ -98,10 +121,11 @@ def plot_some():
         print(first_image[channel])
     plt.show()
 
+"""
 quanvPQC_model = QuanvNN(kernel_size=3, out_channels=4, quanv_model=constants.RANDOM_PQC, 
                          PQC_qubits=4, PQC_L=15,
                          verbose=True)
-"""
+
 quanvVQC_model = QuanvNN(kernel_size=3, out_channels=10, quanv_model=constants.RANDOM_VQC, 
                          VQC_n_shots=1000, VQC_encoding=constants.ROTATIONAL,
                          verbose=True)
@@ -114,10 +138,11 @@ quanvVQC_model = QuanvNN(kernel_size=3, out_channels=25, quanv_model=constants.R
 
                          """
                          
-classicalCNN_model = QuanvNN(kernel_size=3, out_channels=50, quanv_model=constants.CLASSICAL_CNN,
+classicalCNN_model = QuanvNN(kernel_size=3, out_channels=16, quanv_model=constants.CLASSICAL_CNN,
                              verbose=True)
 
-X, y = get_data(n=1000, size=10)
+#X, y = get_data_specific(n=100, size=28, labels_list=[0, 1])
+X, y = get_data(n=60000, size=28)
 
 #quanvVQC_model.quanv.generate_look_up_table()
 
@@ -130,7 +155,7 @@ train_loader, test_loader = load_custom_dataset(batch_size=64, npy_file=X.numpy(
 device = "cpu"
 optimizer = optim.Adam(classicalCNN_model.parameters(), lr=0.001)
 
-for epoch in range(1, 100):  # 100 epochs
+for epoch in range(1, 200):  # 100 epochs
     train(classicalCNN_model, device, train_loader, optimizer, epoch)
     loss, correct = test(classicalCNN_model, device, test_loader)
     print(correct)

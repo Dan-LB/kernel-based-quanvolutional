@@ -63,6 +63,31 @@ def get_data(n = 200, size = 10):
         print(f"Labels shape: {labels.shape}")
         return data, labels  # Stop after the first batch
 
+
+
+def get_data_specific(n=200, size=10, labels_list=[0, 1]):
+    # Define the transform to preprocess the MNIST images
+    transform = transforms.Compose([
+        transforms.Resize((size, size)),
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)  # Convert images to PyTorch tensors
+    ])
+
+    # Download the MNIST dataset and apply the transform
+    mnist_train = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+
+    # Create a DataLoader with a batch size of n
+    train_loader = DataLoader(mnist_train, batch_size=n, shuffle=True)
+
+    for batch_idx, (data, labels) in enumerate(train_loader):
+        # Filter data and labels based on the specified labels_list
+        mask = [label in labels_list for label in labels]
+        filtered_data = data[mask]
+        filtered_labels = labels[mask]
+        print(f"Data shape: {filtered_data.shape}")
+        print(f"Labels shape: {filtered_labels.shape}")
+        return filtered_data, filtered_labels 
+
 def create_and_process(n, size, model, folder_name):
     X, y = get_data(n, size)
     print(f"\nProcessing dataset of {n} images...\n\n")
@@ -117,7 +142,7 @@ quanvPQC_model = QuanvNN(kernel_size=3, out_channels=1, quanv_model=constants.RA
 
 quanvPQC_model.quanv.discretizer = 4
 
-X, y = get_data(n=10000, size=10)
+X, y = get_data_specific(n=60000, size=10, labels_list=[0,1])
 
 #quanvVQC_model.quanv.generate_look_up_table() #1 min e 14 sec con, 1 min e 6 secondi senza
 
